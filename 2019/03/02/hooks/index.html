@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/Blog/lib/font-awesome/css/font-awesome.min.css?v=4.6.2">
+
+<link rel="stylesheet" href="/Blog/css/main.css?v=7.0.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/Blog/images/apple-touch-icon-next.png?v=7.0.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/Blog/images/favicon-32.ico?v=7.0.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/Blog/images/favicon-16.ico?v=7.0.0">
+
+
+  <link rel="mask-icon" href="/Blog/images/logo.svg?v=7.0.0" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/Blog/',
+    scheme: 'Gemini',
+    version: '7.0.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Hooks为什么会出现跨组件复用stateful logic(包含状态的逻辑)十分困难在hooks出现之前，我们想要复用包含状态的逻辑，可能会用到render props 或者高阶组件，但是这些模式都要求你重新构造你的组件，这可能会非常麻烦。你可以在React DevTool里看到我们的组件被层层叠叠的providers, consumers, 高阶组件, render props, 和其他抽象层">
+<meta name="keywords" content="react">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React Hooks">
+<meta property="og:url" content="https://wuwei9536.github.io/Blog/2019/03/02/hooks/index.html">
+<meta property="og:site_name" content="Wien Wu">
+<meta property="og:description" content="Hooks为什么会出现跨组件复用stateful logic(包含状态的逻辑)十分困难在hooks出现之前，我们想要复用包含状态的逻辑，可能会用到render props 或者高阶组件，但是这些模式都要求你重新构造你的组件，这可能会非常麻烦。你可以在React DevTool里看到我们的组件被层层叠叠的providers, consumers, 高阶组件, render props, 和其他抽象层">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-03-02T06:26:14.898Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="React Hooks">
+<meta name="twitter:description" content="Hooks为什么会出现跨组件复用stateful logic(包含状态的逻辑)十分困难在hooks出现之前，我们想要复用包含状态的逻辑，可能会用到render props 或者高阶组件，但是这些模式都要求你重新构造你的组件，这可能会非常麻烦。你可以在React DevTool里看到我们的组件被层层叠叠的providers, consumers, 高阶组件, render props, 和其他抽象层">
+
+
+
+
+
+
+  <link rel="canonical" href="https://wuwei9536.github.io/Blog/2019/03/02/hooks/">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>React Hooks | Wien Wu</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/Blog/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Wien Wu</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-个人简历">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>个人简历</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-schedule">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Blog/schedule/" rel="section"><i class="menu-item-icon fa fa-fw fa-calendar"></i> <br>日程表</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+  
+  
+  
+  
+
+  
+
+  <a href="https://github.com/Wuwei9536" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewbox="0 0 250 250" style="fill: #222; color: #fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/></svg></a>
+
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://wuwei9536.github.io/Blog/Blog/2019/03/02/hooks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Wien Wu">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/Blog/images/weixin.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Wien Wu">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">React Hooks
+
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-02 13:16:02 / 修改时间：14:26:14" itemprop="dateCreated datePublished" datetime="2019-03-02T13:16:02+08:00">2019-03-02</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/Blog/categories/react/" itemprop="url" rel="index"><span itemprop="name">react</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">8.4k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">8 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Hooks为什么会出现"><a href="#Hooks为什么会出现" class="headerlink" title="Hooks为什么会出现"></a>Hooks为什么会出现</h1><p><strong>跨组件复用stateful logic(包含状态的逻辑)十分困难</strong><br>在hooks出现之前，我们想要复用包含状态的逻辑，可能会用到<em>render props</em> 或者<em>高阶组件</em>，但是这些模式都要求你重新构造你的组件，这可能会非常麻烦。你可以在React DevTool里看到我们的组件被层层叠叠的providers, consumers, 高阶组件, render props, 和其他抽象层包裹。使用Hooks，你可以在将含有state的逻辑从组件中抽象出来，这将可以让这些逻辑容易被测试。同时，Hooks可以帮助你在不重写组件结构的情况下复用这些逻辑。</p>
+<p><strong>处理生命周期函数造成的问题</strong><br>当我们的组件变得越来越大时，会发现各种逻辑在组件中散落的到处都是，很复杂很乱。每个生命周期钩子中都包含了一堆互不相关的逻辑。比如我们常常在componentDidMount 和 componentDidUpdate 中拉取数据，同时compnentDidMount 方法可能又包含一些不相干的逻辑，比如设置事件监听（之后需要在 componentWillUnmount 中清除）。最终的结果是强相关的代码被分离，反而是不相关的代码被组合在了一起。这显然会导致大量错误。为了解决这个问题，Hooks允许您根据相关部分(例如设置订阅或获取数据)将一个组件分割成更小的函数，而不是强制基于生命周期方法进行分割。</p>
+<p><strong>解决掉class中this难以被理解的问题</strong><br>class中this的指向通常难以明确，即使是计算机本身。而hooks是基于函数的，连class都不存在，那就更不谈this了。</p>
+<h1 id="Hooks是如何解决问题的"><a href="#Hooks是如何解决问题的" class="headerlink" title="Hooks是如何解决问题的"></a>Hooks是如何解决问题的</h1><a id="more"></a>
+<h2 id="什么是State-Hook"><a href="#什么是State-Hook" class="headerlink" title="什么是State Hook"></a>什么是State Hook</h2><p>state hook解决了状态逻辑复用的问题。</p>
+<pre><code>import { useState } from &apos;react&apos;; 
+
+function Example() {
+  // 声明一个名为“count”的新状态变量
+  const [count, setCount] = useState(0);
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;你点击了{count}次&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        点我
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre><p>在这里, useState是一个钩子（Hook）。我们在一个函数式组件中调用它，为这个组件增加一些内部的状态。React将会在下一次渲染前保存此状态。 useState返回一对值：当前的状态（state value）和一个可以更新状态的函数。你可以在事件处理程序（event handler）中或其他地方调用这个函数。 它与类组件中的this.setState类似，但不能将新旧状态进行合并。（我们在使用状态钩子中展示了一个将useState和this.state进行对比的例子。）</p>
+<p>useState唯一的参数就是初始状态（initial state）。在上面的例子中,因为我们的计数器从零开始所以它是0。这里的状态与this.state不同，它不必是一个对象— 如果你想这么做，当然也可以。初始状态参数只在第一次渲染中被使用。</p>
+<h3 id="声明多个状态"><a href="#声明多个状态" class="headerlink" title="声明多个状态"></a>声明多个状态</h3><pre><code>function ExampleWithManyStates() {
+// 声明多个状态变量！
+const [age, setAge] = useState(42);
+const [fruit, setFruit] = useState(&apos;banana&apos;);
+const [todos, setTodos] = useState([{ text: &apos;Learn Hooks&apos; }]);
+// ...
+}
+</code></pre><p>通过调用useState我们声明了一些状态变量，我们可以使用数组解构语法赋予这些状态变量不同的名字。这些名字不是useState API的一部分。 相反，当你多次调用useState时，React假定你在每一次渲染中以相同的顺序调用它们。我们会在之后再来解释为什么这样可以运行以及在什么时候起作用。</p>
+<h3 id="state-hook-的注意事项"><a href="#state-hook-的注意事项" class="headerlink" title="state hook 的注意事项"></a>state hook 的注意事项</h3><p><strong>useState返回的是一个数组，通过数组解构，它起的作用和如下代码是一样的</strong></p>
+<pre><code>let _useState = useState(0);
+let count = _useState[0];
+let setCount = _useState[1];
+</code></pre><p><strong>react是怎么保证多个useState的相互独立的？</strong></p>
+<p>在声明多个变量里我们调用了三次useState，每次我们传的参数只是一个值（如42，‘banana’），我们根本没有告诉react这些值对应的key是哪个，那react是怎么保证这三个useState找到它对应的state呢？答案是，react是根据useState出现的顺序来定的。我们具体来看一下：</p>
+<pre><code>//第一次渲染
+useState(42);  //将age初始化为42
+useState(&apos;banana&apos;);  //将fruit初始化为banana
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+
+//第二次渲染
+useState(42);  //读取状态变量age的值（这时候传的参数42直接被忽略）
+useState(&apos;banana&apos;);  //读取状态变量fruit的值（这时候传的参数banana直接被忽略）
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+</code></pre><p>假如我们改一下代码：</p>
+<pre><code>let showFruit = true;
+function ExampleWithManyStates() {
+const [age, setAge] = useState(42);
+
+if(showFruit) {
+    const [fruit, setFruit] = useState(&apos;banana&apos;);
+    showFruit = false;
+}
+
+const [todos, setTodos] = useState([{ text: &apos;Learn Hooks&apos; }]);
+</code></pre><p>这样一来，</p>
+<pre><code>//第一次渲染
+useState(42);  //将age初始化为42
+useState(&apos;banana&apos;);  //将fruit初始化为banana
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+
+//第二次渲染
+useState(42);  //读取状态变量age的值（这时候传的参数42直接被忽略）
+// useState(&apos;banana&apos;);  
+useState([{ text: &apos;Learn Hooks&apos; }]); //读取到的却是状态变量fruit的值，导致报错
+</code></pre><p>鉴于此，react规定我们必须把hooks写在函数的最外层，不能写在ifelse等条件语句当中，来确保hooks的执行顺序一致。</p>
+<h2 id="什么是Effect-Hooks"><a href="#什么是Effect-Hooks" class="headerlink" title="什么是Effect Hooks?"></a>什么是Effect Hooks?</h2><p>我们在上一节的例子中增加一个新功能：</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function Example() {
+const [count, setCount] = useState(0);
+
+// 类似于componentDidMount 和 componentDidUpdate:
+useEffect(() =&gt; {
+    // 更新文档的标题
+    document.title = `You clicked ${count} times`;
+});
+
+return (
+    &lt;div&gt;
+    &lt;p&gt;You clicked {count} times&lt;/p&gt;
+    &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+    &lt;/button&gt;
+    &lt;/div&gt;
+);
+}
+</code></pre><p>我们对比着看一下，如果没有hooks，我们会怎么写？</p>
+<pre><code>class Example extends React.Component {
+constructor(props) {
+    super(props);
+    this.state = {
+    count: 0
+    };
+}
+
+componentDidMount() {
+    document.title = `You clicked ${this.state.count} times`;
+}
+
+componentDidUpdate() {
+    document.title = `You clicked ${this.state.count} times`;
+}
+
+render() {
+    return (
+    &lt;div&gt;
+        &lt;p&gt;You clicked {this.state.count} times&lt;/p&gt;
+        &lt;button onClick={() =&gt; this.setState({ count: this.state.count + 1 })}&gt;
+        Click me
+        &lt;/button&gt;
+    &lt;/div&gt;
+    );
+}
+}
+</code></pre><p>我们写的有状态组件，通常会产生很多的副作用（side effect），比如发起ajax请求获取数据，添加一些监听的注册和取消注册，手动修改dom等等。我们之前都把这些副作用的函数写在生命周期函数钩子里，比如componentDidMount，componentDidUpdate和componentWillUnmount。而现在的useEffect就相当与这些声明周期函数钩子的集合体。它以一抵三。<br>同时，由于前文所说hooks可以反复多次使用，相互独立。所以我们合理的做法是，给每一个副作用一个单独的useEffect钩子。这样一来，这些副作用不再一股脑堆在生命周期钩子里，代码变得更加清晰。</p>
+<h3 id="useEffect做了什么？"><a href="#useEffect做了什么？" class="headerlink" title="useEffect做了什么？"></a>useEffect做了什么？</h3><p>我们再梳理一遍下面代码的逻辑：</p>
+<pre><code>function Example() {
+const [count, setCount] = useState(0);
+
+useEffect(() =&gt; {
+    document.title = `You clicked ${count} times`;
+});
+</code></pre><p>首先，我们声明了一个状态变量count，将它的初始值设为0。然后我们告诉react，我们的这个组件有一个副作用。我们给useEffecthook传了一个匿名函数，这个匿名函数就是我们的副作用。在这个例子里，我们的副作用是调用browser API来修改文档标题。当react要渲染我们的组件时，它会先记住我们用到的副作用。等react更新了DOM之后，它再依次执行我们定义的副作用函数。<br>这里要注意几点：<br>第一，react首次渲染和之后的每次渲染都会调用一遍传给useEffect的函数。而之前我们要用两个声明周期函数来分别表示首次渲染（componentDidMount），和之后的更新导致的重新渲染（componentDidUpdate）。<br>第二，useEffect中定义的副作用函数的执行不会阻碍浏览器更新视图，也就是说这些函数是异步执行的，而之前的componentDidMount或componentDidUpdate中的代码则是同步执行的。这种安排对大多数副作用说都是合理的，但有的情况除外，比如我们有时候需要先根据DOM计算出某个元素的尺寸再重新渲染，这时候我们希望这次重新渲染是同步发生的，也就是说它会在浏览器真的去绘制这个页面前发生。</p>
+<h3 id="useEffect怎么解绑一些副作用"><a href="#useEffect怎么解绑一些副作用" class="headerlink" title="useEffect怎么解绑一些副作用"></a>useEffect怎么解绑一些副作用</h3><p>这种场景很常见，当我们在componentDidMount里添加了一个注册，我们得马上在componentWillUnmount中，也就是组件被注销之前清除掉我们添加的注册，否则内存泄漏的问题就出现了。<br>怎么清除呢？让我们传给useEffect的副作用函数返回一个新的函数即可。这个新的函数将会在组件下一次重新渲染之后执行。这种模式在一些pubsub模式的实现中很常见。看下面的例子：</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function FriendStatus(props) {
+const [isOnline, setIsOnline] = useState(null);
+
+function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+}
+
+useEffect(() =&gt; {
+    ChatAPI.subscribeToFriendStatus(props.friend.id, handleStatusChange);
+    // 一定注意下这个顺序：告诉react在下次重新渲染组件之后，同时是下次调用ChatAPI.subscribeToFriendStatus之前执行cleanup
+    return function cleanup() {
+    ChatAPI.unsubscribeFromFriendStatus(props.friend.id, handleStatusChange);
+    };
+});
+
+if (isOnline === null) {
+    return &apos;Loading...&apos;;
+}
+return isOnline ? &apos;Online&apos; : &apos;Offline&apos;;
+}
+</code></pre><p>这里有一个点需要重视！这种解绑的模式跟componentWillUnmount不一样。componentWillUnmount只会在组件被销毁前执行一次而已，而useEffect里的函数，每次组件渲染后都会执行一遍，包括副作用函数返回的这个清理函数也会重新执行一遍。所以我们一起来看一下下面这个问题。</p>
+<h3 id="为什么要让副作用函数每次组件更新都执行一遍？"><a href="#为什么要让副作用函数每次组件更新都执行一遍？" class="headerlink" title="为什么要让副作用函数每次组件更新都执行一遍？"></a>为什么要让副作用函数每次组件更新都执行一遍？</h3><p>我们先看以前的模式：</p>
+<pre><code>componentDidMount() {
+    ChatAPI.subscribeToFriendStatus(
+    this.props.friend.id,
+    this.handleStatusChange
+    );
+}
+
+componentWillUnmount() {
+    ChatAPI.unsubscribeFromFriendStatus(
+    this.props.friend.id,
+    this.handleStatusChange
+    );
+}
+</code></pre><p>我们在componentDidMount注册，再在componentWillUnmount清除注册。但假如这时候props.friend.id变了怎么办？我们不得不再添加一个componentDidUpdate来处理这种情况：</p>
+<pre><code>...
+componentDidUpdate(prevProps) {
+    // 先把上一个friend.id解绑
+    ChatAPI.unsubscribeFromFriendStatus(
+    prevProps.friend.id,
+    this.handleStatusChange
+    );
+    // 再重新注册新但friend.id
+    ChatAPI.subscribeToFriendStatus(
+    this.props.friend.id,
+    this.handleStatusChange
+    );
+}
+...
+</code></pre><p>看到了吗？很繁琐，而我们但useEffect则没这个问题，因为它在每次组件更新后都会重新执行一遍。所以代码的执行顺序是这样的：</p>
+<pre><code>1.页面首次渲染
+2.替friend.id=1的朋友注册
+
+3.突然friend.id变成了2
+4.页面重新渲染
+5.清除friend.id=1的绑定
+6.替friend.id=2的朋友注册
+...
+</code></pre><h3 id="怎么跳过一些不必要的副作用函数"><a href="#怎么跳过一些不必要的副作用函数" class="headerlink" title="怎么跳过一些不必要的副作用函数"></a>怎么跳过一些不必要的副作用函数</h3><p>按照上一节的思路，每次重新渲染都要执行一遍这些副作用函数，显然是不经济的。怎么跳过一些不必要的计算呢？我们只需要给useEffect传第二个参数即可。用第二个参数来告诉react只有当这个参数的值发生改变时，才执行我们传的副作用函数（第一个参数）。</p>
+<pre><code>useEffect(() =&gt; {
+document.title = `You clicked ${count} times`;
+}, [count]); // 只有当count的值发生变化时，才会重新执行`document.title`这一句
+</code></pre><p>当我们第二个参数传一个空数组[]时，其实就相当于只在首次渲染的时候执行。也就是componentDidMount加componentWillUnmount的模式。不过这种用法可能带来bug，少用。</p>
+<h2 id="怎么写自定义的Effect-Hooks"><a href="#怎么写自定义的Effect-Hooks" class="headerlink" title="怎么写自定义的Effect Hooks?"></a>怎么写自定义的Effect Hooks?</h2><p>为什么要自己去写一个Effect Hooks? 这样我们才能把可以复用的逻辑抽离出来，变成一个个可以随意插拔的“插销”，哪个组件要用来，我就插进哪个组件里，so easy！看一个完整的例子，你就明白了。<br>比如我们可以把上面写的FriendStatus组件中判断朋友是否在线的功能抽出来，新建一个useFriendStatus的hook专门用来判断某个id是否在线。</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function useFriendStatus(friendID) {
+const [isOnline, setIsOnline] = useState(null);
+
+function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+}
+
+useEffect(() =&gt; {
+    ChatAPI.subscribeToFriendStatus(friendID, handleStatusChange);
+    return () =&gt; {
+    ChatAPI.unsubscribeFromFriendStatus(friendID, handleStatusChange);
+    };
+});
+
+return isOnline;
+}
+</code></pre><p>这时候FriendStatus组件就可以简写为：</p>
+<pre><code>function FriendStatus(props) {
+const isOnline = useFriendStatus(props.friend.id);
+
+if (isOnline === null) {
+    return &apos;Loading...&apos;;
+}
+return isOnline ? &apos;Online&apos; : &apos;Offline&apos;;
+}
+</code></pre><p>假如这个时候我们又有一个朋友列表也需要显示是否在线的信息：</p>
+<pre><code>function FriendListItem(props) {
+const isOnline = useFriendStatus(props.friend.id);
+
+return (
+    &lt;li style={{ color: isOnline ? 'green' : 'black' }}&gt;
+    {props.friend.name}
+    &lt;/li&gt;
+);
+}
+</code></pre>
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/Blog/tags/react/" rel="tag"># react</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/Blog/2019/02/26/resume/" rel="next" title="吴伟的简历(web前端)">
+                <i class="fa fa-chevron-left"></i> 吴伟的简历(web前端)
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/Blog/images/weixin.jpg" alt="Wien Wu">
+            
+              <p class="site-author-name" itemprop="name">Wien Wu</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/Blog/archives/">
+                
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/Blog/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/Blog/tags/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="https://github.com/Wuwei9536" title="GitHub &rarr; https://github.com/Wuwei9536" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="mailto:wien.wuwei@gmail.com" title="E-Mail &rarr; mailto:wien.wuwei@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="https://weibo.com/u/5647042828" title="Weibo &rarr; https://weibo.com/u/5647042828" rel="noopener" target="_blank"><i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="http://wwwien.top/" title="Site &rarr; http://wwwien.top/" rel="noopener" target="_blank"><i class="fa fa-fw fa-globe"></i>Site</a>
+                </span>
+              
+            </div>
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Hooks为什么会出现"><span class="nav-number">1.</span> <span class="nav-text">Hooks为什么会出现</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Hooks是如何解决问题的"><span class="nav-number">2.</span> <span class="nav-text">Hooks是如何解决问题的</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#什么是State-Hook"><span class="nav-number">2.1.</span> <span class="nav-text">什么是State Hook</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#声明多个状态"><span class="nav-number">2.1.1.</span> <span class="nav-text">声明多个状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#state-hook-的注意事项"><span class="nav-number">2.1.2.</span> <span class="nav-text">state hook 的注意事项</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#什么是Effect-Hooks"><span class="nav-number">2.2.</span> <span class="nav-text">什么是Effect Hooks?</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#useEffect做了什么？"><span class="nav-number">2.2.1.</span> <span class="nav-text">useEffect做了什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#useEffect怎么解绑一些副作用"><span class="nav-number">2.2.2.</span> <span class="nav-text">useEffect怎么解绑一些副作用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么要让副作用函数每次组件更新都执行一遍？"><span class="nav-number">2.2.3.</span> <span class="nav-text">为什么要让副作用函数每次组件更新都执行一遍？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#怎么跳过一些不必要的副作用函数"><span class="nav-number">2.2.4.</span> <span class="nav-text">怎么跳过一些不必要的副作用函数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#怎么写自定义的Effect-Hooks"><span class="nav-number">2.3.</span> <span class="nav-text">怎么写自定义的Effect Hooks?</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Wien Wu</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+    <span title="站点总字数">10k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+    <span title="站点阅读时长">9 分钟</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="/Blog/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script src="/Blog/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script src="/Blog/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+
+  
+
+
+  <script src="/Blog/js/src/utils.js?v=7.0.0"></script>
+
+  <script src="/Blog/js/src/motion.js?v=7.0.0"></script>
+
+
+
+  
+  
+
+
+  <script src="/Blog/js/src/affix.js?v=7.0.0"></script>
+
+  <script src="/Blog/js/src/schemes/pisces.js?v=7.0.0"></script>
+
+
+
+
+  
+  <script src="/Blog/js/src/scrollspy.js?v=7.0.0"></script>
+<script src="/Blog/js/src/post-details.js?v=7.0.0"></script>
+
+
+
+  
+
+
+  <script src="/Blog/js/src/bootstrap.js?v=7.0.0"></script>
+
+
+  
+  
+
+
+  
+
+
+  
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
